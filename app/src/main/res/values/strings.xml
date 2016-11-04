@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ToDo</string>
+    <string name="action_add">add</string>
+    <string name="selected_count">Selected</string>
+    <string name="enter_task">"Enter Your Task : "</string>
+    <string name="action_select">select</string>
+</resources>
