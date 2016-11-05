@@ -13,6 +13,9 @@ import com.app.todo.model.Task;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * Created by arifkhan on 03/11/16.
+ */
 public class DBHelper extends SQLiteOpenHelper {
 
    public static final String DATABASE_NAME = "TODO.db";
@@ -47,8 +50,29 @@ public class DBHelper extends SQLiteOpenHelper {
       }
       return true;
    }
-   
-   public Cursor getData(int id){
+
+    public void insertTask(Task task)
+    {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("name", task.getName());
+        contentValues.put("state", task.getState());
+        //contentValues.put("id", task.getId());
+        db.insert("task", null,contentValues);
+    }
+
+    public void upDateTask(Task task)
+    {
+            SQLiteDatabase db = this.getWritableDatabase();
+            ContentValues contentValues = new ContentValues();
+            contentValues.put("name", task.getName());
+            contentValues.put("state", task.getState());
+            contentValues.put("id", task.getId());
+            db.update("task", contentValues,"id = ? ",new String[]{task.getId()+""});
+    }
+
+
+    public Cursor getData(int id){
       SQLiteDatabase db = this.getReadableDatabase();
       Cursor res =  db.rawQuery( "select * from task where id="+id+"", null );
       return res;
@@ -60,29 +84,51 @@ public class DBHelper extends SQLiteOpenHelper {
       return numRows;
    }
 
-   public Integer deleteTask(Integer id)
+   public Integer deleteTask(Task task)
    {
       SQLiteDatabase db = this.getWritableDatabase();
       return db.delete("task",
       "id = ? ", 
-      new String[] { Integer.toString(id) });
+      new String[] { task.getId()+"" });
    }
    
-   public ArrayList<String> getAllTasks()
+   public ArrayList<Task> getAllPendingTasks()
    {
-      ArrayList<String> array_list = new ArrayList<String>();
+      ArrayList<Task> array_list = new ArrayList<Task>();
       
-      //hp = new HashMap();
       SQLiteDatabase db = this.getReadableDatabase();
-      Cursor res =  db.rawQuery( "select * from task", null );
+      Cursor res =  db.rawQuery( "select * from task where state = 0", null );
       res.moveToFirst();
       
       while(res.isAfterLast() == false){
-         array_list.add(res.getString(res.getColumnIndex(CONTACTS_COLUMN_NAME)));
+         Task task = new Task();
+         task.setState(res.getInt(res.getColumnIndex(CONTACTS_COLUMN_STATE)));
+         task.setId(res.getInt(res.getColumnIndex(CONTACTS_COLUMN_ID)));
+         task.setName(res.getString(res.getColumnIndex(CONTACTS_COLUMN_NAME)));
+         array_list.add(task);
          res.moveToNext();
       }
    return array_list;
    }
+
+    public ArrayList<Task> getAllDoneTasks()
+    {
+        ArrayList<Task> array_list = new ArrayList<Task>();
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res =  db.rawQuery( "select * from task where state = 1", null );
+        res.moveToFirst();
+
+        while(res.isAfterLast() == false){
+            Task task = new Task();
+            task.setState(res.getInt(res.getColumnIndex(CONTACTS_COLUMN_STATE)));
+            task.setId(res.getInt(res.getColumnIndex(CONTACTS_COLUMN_ID)));
+            task.setName(res.getString(res.getColumnIndex(CONTACTS_COLUMN_NAME)));
+            array_list.add(task);
+            res.moveToNext();
+        }
+        return array_list;
+    }
 
    @Override
    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {

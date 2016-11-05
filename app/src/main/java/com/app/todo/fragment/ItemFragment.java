@@ -3,7 +3,11 @@ package com.app.todo.fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.Loader;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
@@ -20,34 +24,42 @@ import android.widget.EditText;
 import com.app.todo.R;
 import com.app.todo.activity.MainActivity;
 import com.app.todo.adapter.ItemRecyclerViewAdapter;
+import com.app.todo.application.ToDoApp;
+import com.app.todo.database.DBHelper;
+import com.app.todo.database.DataLoader;
 import com.app.todo.interfaces.OnListFragmentInteractionListener;
 import com.app.todo.model.Task;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A fragment representing a list of Items.
- * <p/>
- * Activities containing this fragment MUST implement the {@link OnListFragmentInteractionListener}
- * interface.
- */
-public class ItemFragment extends Fragment implements OnListFragmentInteractionListener, android.view.ActionMode.Callback {
+import javax.inject.Inject;
 
-    private List<Task> tasks;
+import jp.wasabeef.recyclerview.animators.FadeInUpAnimator;
+import jp.wasabeef.recyclerview.animators.SlideInRightAnimator;
+
+/**
+ * Created by arifkhan on 03/11/16.
+ */
+public class ItemFragment extends Fragment implements OnListFragmentInteractionListener, android.view.ActionMode.Callback, LoaderManager.LoaderCallbacks<List<Task>> {
+
+    private List<Task> tasks = new ArrayList<>();
     private int type;
-    public static int pending = 1;
-    public static int done = 2;
+    public static int pending = 0;
+    public static int done = 1;
     private ItemRecyclerViewAdapter adapter;
     private ActionMode actionMode;
+    private RecyclerView recyclerView;
+    private boolean isAttached;
+    @Inject
+    public DBHelper dbHelper;
 
     public ItemFragment() {
     }
 
-    public static ItemFragment newInstance(ArrayList<Task> tasks, int type) {
+    public static ItemFragment newInstance( int type) {
         ItemFragment fragment = new ItemFragment();
         Bundle bundle = new Bundle();
-        bundle.putParcelableArrayList("task", tasks);
         bundle.putInt("type", type);
         fragment.setArguments(bundle);
         return fragment;
@@ -56,15 +68,11 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        ((ToDoApp)getActivity().getApplication()).getAppComponent().inject(this);
         if (getArguments() != null) {
-            tasks = (List<Task>) getArguments().get("task");
             type = getArguments().getInt("type");
         }
-        if (type == pending) {
-            setHasOptionsMenu(true);
-        } else {
-            setHasOptionsMenu(false);
-        }
+        setHasOptionsMenu(true);
     }
 
     @Override
@@ -72,9 +80,15 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
         super.onPrepareOptionsMenu(menu);
         if (type == pending) {
             menu.getItem(0).setVisible(true);
-        } else {
+        } else if (type == done){
             menu.getItem(0).setVisible(false);
         }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.menu_main_activity, menu);
     }
 
     @Override
@@ -87,12 +101,10 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
                 AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
                         getActivity());
 
-                // set prompts.xml to alertdialog builder
                 alertDialogBuilder.setView(promptsView);
 
                 final EditText userInput = (EditText) promptsView.findViewById(R.id.editText);
 
-                // set dialog message
                 alertDialogBuilder
                         .setCancelable(false)
                         .setPositiveButton("OK",
@@ -102,9 +114,11 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
                                         Task task = new Task();
                                         task.setName(userInput.getText().toString());
                                         task.setState(0);
-                                        tasks.add(task);
-                                        adapter.notifyDataSetChanged();
-                                        ((MainActivity)getActivity()).onTaskAdded(task);
+                                        //tasks.add(task);
+                                        dbHelper.insertTask(task);
+                                        getLoaderManager().restartLoader(type,null,ItemFragment.this).forceLoad();
+                                        //adapter.notifyDataSetChanged();
+                                        //((MainActivity)getActivity()).onTaskAdded(task);
 
                                     }
                                 })
@@ -128,48 +142,67 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_pending_list, container, false);
+        recyclerView = (RecyclerView) view.findViewById(R.id.list);
+        final SwipeRefreshLayout swipeRefreshLayout = (SwipeRefreshLayout) view.findViewById(R.id.swiperefresh);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                ((MainActivity)getActivity()).onSwipeRefresh(swipeRefreshLayout);
+            }
+        });
+        Context context = view.getContext();
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
+        adapter = new ItemRecyclerViewAdapter(tasks, this);
+        recyclerView.setAdapter(adapter);
+        recyclerView.setItemAnimator(new FadeInUpAnimator());
+        recyclerView.getItemAnimator().setRemoveDuration(3000);
+        recyclerView.getItemAnimator().setAddDuration(5000);
 
-        // Set the adapter
-        if (view instanceof RecyclerView) {
-            Context context = view.getContext();
-            RecyclerView recyclerView = (RecyclerView) view;
-            recyclerView.setLayoutManager(new LinearLayoutManager(context));
-            //recyclerView.setItemAnimator(new DefaultItemAnimator());
-            adapter = new ItemRecyclerViewAdapter(tasks, this);
-            recyclerView.setAdapter(adapter);
-        }
+        getLoaderManager().initLoader(type, null, this).forceLoad();
+
         return view;
+    }
+
+    //This method is called when fragment is visible to the user.
+    //Refreshing the data so that all taks which are moved from pending to done are also shown
+    @Override
+    public void setUserVisibleHint(boolean isVisibleToUser) {
+        super.setUserVisibleHint(isVisibleToUser);
+        if (isVisibleToUser && isAttached) {
+            getLoaderManager().initLoader(type, null, this).forceLoad();
+        }
     }
 
 
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
-        /*if (context instanceof OnListFragmentInteractionListener) {
-            mListener = (OnListFragmentInteractionListener) context;
-        } else {
-            throw new RuntimeException(context.toString()
-                    + " must implement OnListFragmentInteractionListener");
-        }*/
+        isAttached = true;
     }
 
-    /*@Override
-    public void onDetach() {
-        super.onDetach();
-        mListener = null;
-    }*/
-
     @Override
-    public void onItemClick(int position, Task item) {
+    public void onItemClick(int position, final Task item) {
         if(null != actionMode){
             adapter.toggleSelection(position);
             String title = getString(R.string.selected_count) + " " + adapter.getSelectedItemCount();
             actionMode.setTitle(title);
         }else{
             item.setState(item.getState()==0?1:0);
-            ((MainActivity)getActivity()).onTaskStateChanged(item);
-        }
+            dbHelper.upDateTask(item);
+            getLoaderManager().restartLoader(type,null,this).forceLoad();
+            Snackbar bar = Snackbar.make(recyclerView, "Moved", Snackbar.LENGTH_LONG)
+                    .setAction("Cancel", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            item.setState(item.getState()==0?1:0);
+                            dbHelper.upDateTask(item);
+                            getLoaderManager().restartLoader(type,null,ItemFragment.this).forceLoad();
+                        }
+                    });
 
+            bar.setDuration(4000);
+            bar.show();
+        }
     }
 
     @Override
@@ -200,9 +233,12 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
                 List<Integer> selectedItemPositions = adapter.getSelectedItems();
                 for (int i=selectedItemPositions.size()-1;i>= 0;i--){
                     adapter.removeData(selectedItemPositions.get(i));
-            }
-            actionMode.finish();
-            return true;
+                    dbHelper.deleteTask(tasks.get(selectedItemPositions.get(i)));
+                    tasks.remove(selectedItemPositions.get(i));
+                    getLoaderManager().restartLoader(type,null,ItemFragment.this).forceLoad();
+                }
+                actionMode.finish();
+                return true;
             default:
                 return false;
         }
@@ -212,5 +248,27 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
     public void onDestroyActionMode(ActionMode actionMode) {
         this.actionMode = null;
         adapter.clearSelections();
+    }
+
+    @Override
+    public Loader<List<Task>> onCreateLoader(int id, Bundle args) {
+        DataLoader loader = null;
+        if(type == 0)
+            loader = new DataLoader(getActivity(),0);
+        else if(type == 1)
+            loader = new DataLoader(getActivity(),1);
+        return loader;
+    }
+
+    @Override
+    public void onLoadFinished(Loader<List<Task>> loader, List<Task> data) {
+        tasks = data;
+        adapter.setTasks(data);
+        adapter.notifyDataSetChanged();
+    }
+
+    @Override
+    public void onLoaderReset(Loader<List<Task>> loader) {
+
     }
 }

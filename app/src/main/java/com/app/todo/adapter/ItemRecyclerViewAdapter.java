@@ -16,10 +16,12 @@ import com.app.todo.model.Task;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * Created by arifkhan on 03/11/16.
+ */
 public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerViewAdapter.ViewHolder> {
 
-    private final List<Task> mValues;
+    private List<Task> mValues;
     private final OnListFragmentInteractionListener mListener;
     private SparseBooleanArray selectedItems;
 
@@ -27,6 +29,10 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
         mValues = items;
         mListener = listener;
         selectedItems = new SparseBooleanArray();
+    }
+
+    public void setTasks(List<Task> tasks){
+       this.mValues = tasks;
     }
 
     @Override
@@ -40,6 +46,7 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
     public void onBindViewHolder(final ViewHolder holder, final int position) {
         holder.mItem = mValues.get(position);
         holder.mContentView.setText(mValues.get(position).getName());
+        //holder.selectionView.setSelected(false);
 
         holder.mView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -47,7 +54,6 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
                 if (null != mListener) {
                     mListener.onItemClick(position, holder.mItem);
                 }
-                holder.selectionView.setVisibility(isSelected(position) ? View.VISIBLE : View.INVISIBLE);
             }
         });
 
@@ -58,7 +64,6 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
                 if (null != mListener) {
                     mListener.onItemLongClick(position, holder.mItem);
                 }
-                holder.selectionView.setVisibility(isSelected(position) ? View.VISIBLE : View.INVISIBLE);
                 return true;
             }
         });
@@ -72,7 +77,6 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
 
     public class ViewHolder extends RecyclerView.ViewHolder {
         public final View mView;
-        public final View selectionView;
         public final TextView mContentView;
         public Task mItem;
 
@@ -80,7 +84,6 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
             super(view);
             mView = view;
             mContentView = (TextView) view.findViewById(R.id.name);
-            selectionView = view.findViewById(R.id.selected_overlay);
 
         }
 
@@ -110,7 +113,6 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
     }
 
     public void removeData(int position) {
-        mValues.remove(position);
         notifyItemRemoved(position);
     }
 
@@ -120,7 +122,7 @@ public class ItemRecyclerViewAdapter extends RecyclerView.Adapter<ItemRecyclerVi
 
 
     public List<Integer> getSelectedItems() {
-        List<Integer> items = new ArrayList<Integer>(selectedItems.size());
+        List<Integer> items = new ArrayList<>(selectedItems.size());
         for (int i = 0; i < selectedItems.size(); i++) {
             items.add(selectedItems.keyAt(i));
         }
