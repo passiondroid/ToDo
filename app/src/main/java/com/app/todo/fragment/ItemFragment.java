@@ -36,6 +36,7 @@ import java.util.List;
 import javax.inject.Inject;
 
 import jp.wasabeef.recyclerview.animators.FadeInUpAnimator;
+import jp.wasabeef.recyclerview.animators.SlideInLeftAnimator;
 import jp.wasabeef.recyclerview.animators.SlideInRightAnimator;
 
 /**
@@ -154,9 +155,7 @@ public class ItemFragment extends Fragment implements OnListFragmentInteractionL
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
         adapter = new ItemRecyclerViewAdapter(tasks, this);
         recyclerView.setAdapter(adapter);
-        recyclerView.setItemAnimator(new FadeInUpAnimator());
-        recyclerView.getItemAnimator().setRemoveDuration(3000);
-        recyclerView.getItemAnimator().setAddDuration(5000);
+        recyclerView.setItemAnimator(new SlideInLeftAnimator());
 
         getLoaderManager().initLoader(type, null, this).forceLoad();
 
