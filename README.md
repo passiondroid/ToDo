@@ -5,7 +5,7 @@ A simple ToDo App implemented using Dagger2 &amp; Retrofit
 
 Pre-requisites
 --------------
-* Android SDK 19 or Higher
+* Android SDK 15 or Higher
 * Build Tools version 25.0.0
 * Android Support AppCompat 25.0.0
 * Android Support Recyclerview 25.0.0
