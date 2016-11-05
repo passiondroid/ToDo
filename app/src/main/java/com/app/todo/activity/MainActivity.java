@@ -7,7 +7,6 @@ import android.support.v4.widget.ContentLoadingProgressBar;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
 import android.view.View;
 import android.widget.Toast;
 import com.app.todo.R;
@@ -15,11 +14,9 @@ import com.app.todo.adapter.ViewPagerAdapter;
 import com.app.todo.application.ToDoApp;
 import com.app.todo.database.DBHelper;
 import com.app.todo.fragment.ItemFragment;
-import com.app.todo.interfaces.OnTaskChangedListener;
 import com.app.todo.model.Data;
-import com.app.todo.model.Task;
 import com.app.todo.network.DataApiEndpointInterface;
-import java.util.ArrayList;
+
 import javax.inject.Inject;
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -29,7 +26,7 @@ import retrofit2.Response;
 import retrofit2.Retrofit;
 
 
-public class MainActivity extends AppCompatActivity implements OnTaskChangedListener {
+public class MainActivity extends AppCompatActivity {
     @BindView(R.id.tabLayout) TabLayout tabLayout;
     @BindView(R.id.viewpager) ViewPager viewPager;
     @BindView(R.id.toolbar) Toolbar toolbar;
@@ -82,16 +79,6 @@ public class MainActivity extends AppCompatActivity implements OnTaskChangedList
         tabLayout.setupWithViewPager(viewPager);
         if(swipeView != null)
             ((SwipeRefreshLayout)swipeView).setRefreshing(false);
-    }
-
-    @Override
-    public void onTaskStateChanged(Task task) {
-        setUpViewpager();
-    }
-
-    @Override
-    public void onTaskAdded(Task task) {
-        data.getData().add(task);
     }
 
     public void onSwipeRefresh(View view){
